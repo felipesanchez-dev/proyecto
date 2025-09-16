@@ -1,6 +1,3 @@
-"""
-Extensión del módulo de escaneo para software y configuraciones de seguridad
-"""
 import subprocess
 import json
 import logging

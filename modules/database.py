@@ -1,7 +1,3 @@
-"""
-Módulo de integración con MongoDB
-Maneja conexión, reintentos y envío de datos
-"""
 import pymongo
 import logging
 import time
@@ -10,7 +6,6 @@ from datetime import datetime
 from config.settings import get_mongodb_uri, MONGODB_DATABASE, MONGODB_COLLECTION
 
 class MongoDBClient:
-    """Cliente para interaccionar con MongoDB"""
     
     def __init__(self, max_retries: int = 3, retry_delay: int = 2):
         self.logger = logging.getLogger(__name__)
@@ -21,28 +16,20 @@ class MongoDBClient:
         self.collection = None
         
     def connect(self) -> bool:
-        """
-        Establece conexión con MongoDB
-        Returns:
-            True si la conexión es exitosa, False en caso contrario
-        """
         try:
             uri = get_mongodb_uri()
             self.logger.info(f"Conectando a MongoDB...")
             
-            # Crear cliente con configuración de timeout
             self.client = pymongo.MongoClient(
                 uri,
-                serverSelectionTimeoutMS=5000,  # 5 segundos timeout
-                connectTimeoutMS=10000,         # 10 segundos para conectar
-                socketTimeoutMS=10000,          # 10 segundos para operaciones
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000,
                 retryWrites=True
             )
             
-            # Verificar conexión
             self.client.admin.command('ping')
             
-            # Seleccionar base de datos y colección
             self.db = self.client[MONGODB_DATABASE]
             self.collection = self.db[MONGODB_COLLECTION]
             
@@ -60,11 +47,6 @@ class MongoDBClient:
             return False
     
     def test_connection(self) -> Dict[str, Any]:
-        """
-        Prueba la conexión y obtiene información del servidor
-        Returns:
-            Diccionario con información de la conexión
-        """
         connection_info = {
             "connected": False,
             "server_info": None,
@@ -79,11 +61,9 @@ class MongoDBClient:
                     connection_info["error"] = "No se pudo establecer conexión"
                     return connection_info
             
-            # Obtener información del servidor
             connection_info["server_info"] = self.client.server_info()
             connection_info["connected"] = True
             
-            # Estadísticas de la base de datos
             if self.db is not None:
                 connection_info["database_stats"] = self.db.command("dbstats")
                 connection_info["collection_count"] = self.collection.count_documents({})
@@ -106,12 +86,10 @@ class MongoDBClient:
         """
         for attempt in range(self.max_retries):
             try:
-                # Asegurar conexión
                 if not self.client:
                     if not self.connect():
                         raise Exception("No se pudo conectar a MongoDB")
                 
-                # Agregar metadata de inserción
                 scan_data["mongodb_info"] = {
                     "inserted_at": datetime.now().isoformat(),
                     "database": MONGODB_DATABASE,
@@ -119,7 +97,6 @@ class MongoDBClient:
                     "attempt": attempt + 1
                 }
                 
-                # Insertar documento
                 result = self.collection.insert_one(scan_data)
                 document_id = str(result.inserted_id)
                 
@@ -133,7 +110,7 @@ class MongoDBClient:
             except pymongo.errors.NetworkTimeout:
                 self.logger.warning(f"Timeout en intento {attempt + 1}/{self.max_retries}")
                 if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay * (attempt + 1))  # Backoff exponencial
+                    time.sleep(self.retry_delay * (attempt + 1))
                     continue
                 else:
                     self.logger.error("Todos los intentos de conexión fallaron")
@@ -150,13 +127,6 @@ class MongoDBClient:
         return None
     
     def find_scan_by_id(self, scan_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Busca un escaneo por su scan_id
-        Args:
-            scan_id: ID del escaneo a buscar
-        Returns:
-            Diccionario con datos del escaneo o None si no se encuentra
-        """
         try:
             if not self.client:
                 if not self.connect():
@@ -165,7 +135,6 @@ class MongoDBClient:
             document = self.collection.find_one({"identifiers.scan_id": scan_id})
             
             if document:
-                # Convertir ObjectId a string
                 document["_id"] = str(document["_id"])
                 self.logger.info(f"Escaneo encontrado: {scan_id}")
                 return document
@@ -178,13 +147,6 @@ class MongoDBClient:
             return None
     
     def get_recent_scans(self, limit: int = 10) -> list:
-        """
-        Obtiene los escaneos más recientes
-        Args:
-            limit: Número máximo de escaneos a retornar
-        Returns:
-            Lista de diccionarios con escaneos recientes
-        """
         scans = []
         
         try:
@@ -195,7 +157,6 @@ class MongoDBClient:
             cursor = self.collection.find().sort("identifiers.timestamp", -1).limit(limit)
             
             for document in cursor:
-                # Convertir ObjectId a string y mantener solo campos esenciales
                 scan_summary = {
                     "_id": str(document["_id"]),
                     "scan_id": document.get("identifiers", {}).get("scan_id", "unknown"),
@@ -213,11 +174,6 @@ class MongoDBClient:
         return scans
     
     def get_collection_stats(self) -> Dict[str, Any]:
-        """
-        Obtiene estadísticas de la colección
-        Returns:
-            Diccionario con estadísticas
-        """
         stats = {
             "total_documents": 0,
             "collection_size_mb": 0,
@@ -232,7 +188,6 @@ class MongoDBClient:
                     stats["error"] = "No conectado"
                     return stats
             
-            # Estadísticas de la colección
             collection_stats = self.db.command("collstats", MONGODB_COLLECTION)
             
             stats["total_documents"] = collection_stats.get("count", 0)

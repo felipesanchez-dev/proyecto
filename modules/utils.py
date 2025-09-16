@@ -1,6 +1,3 @@
-"""
-Utilidades para manejo de datos, persistencia y identificadores
-"""
 import json
 import uuid
 import random

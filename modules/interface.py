@@ -21,7 +21,6 @@ from modules.logging_setup import OperationLogger, SecurityLogger
 from config.settings import SENSITIVE_DATA_WARNING
 
 class ConsoleInterface:
-    """Interfaz de consola principal con Rich"""
     
     def __init__(self):
         self.console = Console()
@@ -41,11 +40,6 @@ class ConsoleInterface:
         self.console.print()
     
     def show_main_menu(self) -> str:
-        """
-        Muestra el menú principal y captura la selección del usuario
-        Returns:
-            Opción seleccionada por el usuario
-        """
         menu_panel = Panel.fit(
             "[bold bright_white]MENÚ PRINCIPAL[/bold bright_white]\n\n"
             "[bright_green]1.[/bright_green] [white]Escaneo Profundo del Sistema y Subida a MongoDB[/white]\n"
@@ -63,11 +57,6 @@ class ConsoleInterface:
             return choice
     
     def show_scan_options(self) -> Dict[str, bool]:
-        """
-        Muestra opciones de escaneo y captura configuración
-        Returns:
-            Diccionario con opciones de escaneo
-        """
         self.console.print(Panel.fit(
             "[bold yellow]CONFIGURACIÓN DEL ESCANEO[/bold yellow]\n\n"
             "El sistema escaneará automáticamente:\n"
@@ -80,7 +69,6 @@ class ConsoleInterface:
             border_style="green"
         ))
         
-        # Advertencia sobre datos sensibles
         self.console.print(Panel.fit(
             f"[red]{SENSITIVE_DATA_WARNING}[/red]\n\n"
             "Los datos sensibles incluyen:\n"
@@ -102,18 +90,11 @@ class ConsoleInterface:
         
         return {
             "include_sensitive": include_sensitive,
-            "save_local": True,  # Siempre guardar localmente
+            "save_local": True,
             "upload_mongodb": Confirm.ask("[cyan]¿Subir resultado a MongoDB?[/cyan]", default=True)
         }
     
     def perform_system_scan(self, options: Dict[str, bool]) -> Optional[Dict[str, Any]]:
-        """
-        Realiza el escaneo completo del sistema con interfaz visual
-        Args:
-            options: Opciones de escaneo
-        Returns:
-            Datos del escaneo o None si falla
-        """
         operation_logger = OperationLogger("system_scan")
         operation_id = operation_logger.start_operation()
         
@@ -125,23 +106,19 @@ class ConsoleInterface:
             console=self.console
         ) as progress:
             
-            # Inicializar escáneres
             operation_logger.log_step("Inicializando escáneres")
             scanner = SystemScanner(include_sensitive=options["include_sensitive"])
             security_scanner = SecurityScanner()
             data_manager = DataManager()
             
-            # Definir tareas de progreso
             hardware_task = progress.add_task("[green]Escaneando hardware...", total=100)
             security_task = progress.add_task("[yellow]Escaneando seguridad...", total=100)
             saving_task = progress.add_task("[blue]Guardando datos...", total=100)
             
             try:
-                # Escaneo de hardware
                 operation_logger.log_progress("Iniciando escaneo de hardware", 10)
                 progress.update(hardware_task, advance=20)
                 
-                # Escanear componentes individuales
                 progress.update(hardware_task, description="[green]Discos y particiones...")
                 disks = scanner.scan_disks()
                 progress.update(hardware_task, advance=15)
@@ -170,7 +147,6 @@ class ConsoleInterface:
                 driver_updates = scanner.scan_driver_updates()
                 progress.update(hardware_task, advance=5)
                 
-                # Escaneo de seguridad
                 operation_logger.log_progress("Iniciando escaneo de seguridad", 50)
                 progress.update(security_task, advance=20)
                 
@@ -190,7 +166,6 @@ class ConsoleInterface:
                 software = security_scanner.scan_installed_software()
                 progress.update(security_task, advance=20)
                 
-                # Compilar datos
                 operation_logger.log_progress("Compilando datos del escaneo", 80)
                 identifiers = data_manager.generate_scan_identifiers()
                 
@@ -201,7 +176,7 @@ class ConsoleInterface:
                             "disks": disks,
                             "gpu": gpu,
                             "memory": memory,
-                            "cpu": cpu  # Ahora incluye núcleos, hilos, hyperthreading
+                            "cpu": cpu
                         },
                         "operating_system": os_info,
                         "updates": {
@@ -210,7 +185,7 @@ class ConsoleInterface:
                         },
                         "security": {
                             "firewall": firewall,
-                            "ports_summary": ports,  # Ahora es un diccionario con resumen
+                            "ports_summary": ports,
                             "hotfixes": hotfixes,
                             "installed_software_summary": {
                                 "total_count": len(software),
@@ -220,17 +195,15 @@ class ConsoleInterface:
                     },
                     "scan_settings": {
                         "include_sensitive": options["include_sensitive"],
-                        "scanner_version": "1.1.0",  # Actualizada por mejoras en hardware y puertos
+                        "scanner_version": "1.1.0",
                         "operation_id": operation_id
                     }
                 }
                 
-                # Guardar localmente
                 progress.update(saving_task, advance=50, description="[blue]Guardando localmente...")
                 local_file = data_manager.save_scan_locally(scan_data)
                 operation_logger.log_step("Guardado local", local_file)
                 
-                # Subir a MongoDB si está habilitado
                 if options["upload_mongodb"]:
                     progress.update(saving_task, description="[blue]Subiendo a MongoDB...")
                     try:
@@ -271,7 +244,6 @@ class ConsoleInterface:
         hardware = system_info.get("hardware", {})
         os_info = system_info.get("operating_system", {})
         
-        # Panel principal con información del escaneo
         info_table = Table(show_header=False, box=None)
         info_table.add_column("Campo", style="bright_cyan", width=20)
         info_table.add_column("Valor", style="white")
@@ -287,12 +259,10 @@ class ConsoleInterface:
             border_style="green"
         ))
         
-        # Tabla de hardware
         hw_table = Table(show_header=True, header_style="bold bright_white")
         hw_table.add_column("Componente", style="cyan", width=15)
         hw_table.add_column("Información", style="white")
         
-        # CPU - Información detallada
         cpu_info = hardware.get("cpu", {})
         cpu_cores = cpu_info.get('physical_cores', 'N/A')
         cpu_threads = cpu_info.get('logical_cores', 'N/A')
@@ -307,12 +277,10 @@ class ConsoleInterface:
         
         hw_table.add_row("CPU", cpu_text)
         
-        # RAM
         memory_info = hardware.get("memory", {})
         ram_text = f"{memory_info.get('total_gb', 'N/A')} GB total - {memory_info.get('used_percent', 'N/A')}% usado"
         hw_table.add_row("RAM", ram_text)
         
-        # Discos
         disks = hardware.get("disks", [])
         disk_text = f"{len(disks)} discos detectados"
         if disks:
@@ -320,7 +288,6 @@ class ConsoleInterface:
             disk_text += f" - {total_gb:.1f} GB total"
         hw_table.add_row("Discos", disk_text)
         
-        # GPU
         gpus = hardware.get("gpu", [])
         gpu_text = f"{len(gpus)} GPU(s) detectadas"
         if gpus:
@@ -333,7 +300,6 @@ class ConsoleInterface:
             border_style="blue"
         ))
         
-        # Mostrar información de seguridad si está disponible
         security_info = system_info.get("security", {})
         if security_info:
             sec_table = Table(show_header=True, header_style="bold bright_white")
@@ -366,7 +332,6 @@ class ConsoleInterface:
                 border_style="yellow"
             ))
         
-        # Mostrar información de actualizaciones si está disponible
         updates_info = system_info.get("updates", {})
         if updates_info:
             upd_table = Table(show_header=True, header_style="bold bright_white")
@@ -402,7 +367,6 @@ class ConsoleInterface:
                 border_style="magenta"
             ))
         
-        # Panel de resumen final
         self.console.print(Panel.fit(
             f"[green]✓ Escaneo completado exitosamente[/green]\n"
             f"[white]Los datos han sido guardados localmente y enviados a MongoDB[/white]\n"
@@ -412,7 +376,6 @@ class ConsoleInterface:
         ))
     
     def run_main_loop(self):
-        """Ejecuta el bucle principal de la interfaz"""
         try:
             self.show_banner()
             
@@ -420,7 +383,6 @@ class ConsoleInterface:
                 choice = self.show_main_menu()
                 
                 if choice == "1":
-                    # Escaneo del sistema
                     self.console.print("[bright_green]Iniciando escaneo del sistema...[/bright_green]\n")
                     
                     options = self.show_scan_options()
@@ -429,7 +391,6 @@ class ConsoleInterface:
                     if scan_data:
                         self.show_scan_results(scan_data)
                         
-                        # Preguntar si quiere ver detalles
                         if Confirm.ask("\n[cyan]¿Ver resumen detallado del escaneo?[/cyan]"):
                             data_manager = DataManager()
                             summary = data_manager.format_scan_summary(scan_data)
@@ -444,13 +405,11 @@ class ConsoleInterface:
                     self.console.input("\n[dim]Presione Enter para continuar...[/dim]")
                 
                 elif choice == "2":
-                    # Activación de Windows/Office
                     from modules.activation import ActivationModule
                     activation = ActivationModule(self.console)
                     activation.show_activation_menu()
                 
                 elif choice == "3":
-                    # Salir
                     self.console.print("[bright_yellow]¡Gracias por usar Sistema Scanner![/bright_yellow]")
                     break
                 

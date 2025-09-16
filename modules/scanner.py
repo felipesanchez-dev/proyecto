@@ -1,7 +1,3 @@
-"""
-Módulo de escaneo del sistema Windows
-Escanea hardware, software y configuraciones de seguridad
-"""
 import psutil
 import platform
 import subprocess
@@ -16,7 +12,6 @@ from typing import Dict, List, Optional, Any
 import wmi
 
 class SystemScanner:
-    """Escáner completo del sistema Windows"""
     
     def __init__(self, include_sensitive: bool = True):
         self.include_sensitive = include_sensitive
@@ -29,7 +24,6 @@ class SystemScanner:
             self.logger.warning(f"No se pudo establecer conexión WMI: {e}")
     
     def generate_identifiers(self) -> Dict[str, str]:
-        """Genera identificadores únicos para el escaneo"""
         scan_id = str(uuid.uuid4())
         access_pin = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
         
@@ -40,11 +34,9 @@ class SystemScanner:
         }
     
     def scan_disks(self) -> List[Dict[str, Any]]:
-        """Escanea información de discos y particiones"""
         disks_info = []
         
         try:
-            # Obtener particiones
             partitions = psutil.disk_partitions()
             
             for partition in partitions:
@@ -61,7 +53,6 @@ class SystemScanner:
                         "percent_used": round((partition_usage.used / partition_usage.total) * 100, 2)
                     }
                     
-                    # Intentar obtener información del disco físico via WMI
                     if self.wmi_connection:
                         try:
                             for disk in self.wmi_connection.Win32_DiskDrive():
@@ -88,7 +79,6 @@ class SystemScanner:
         return disks_info
     
     def scan_gpu(self) -> List[Dict[str, Any]]:
-        """Escanea información de tarjetas gráficas"""
         gpu_info = []
         
         try:
@@ -110,7 +100,6 @@ class SystemScanner:
         return gpu_info
     
     def scan_memory(self) -> Dict[str, Any]:
-        """Escanea información de memoria RAM"""
         memory_info = {
             "total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
             "available_gb": round(psutil.virtual_memory().available / (1024**3), 2),
@@ -135,7 +124,6 @@ class SystemScanner:
         return memory_info
     
     def scan_cpu(self) -> Dict[str, Any]:
-        """Escanea información detallada del procesador"""
         cpu_info = {
             "processor_name": platform.processor(),
             "architecture": platform.machine(),
@@ -172,18 +160,16 @@ class SystemScanner:
                         "load_percentage": processor.LoadPercentage
                     })
                     
-                    # Calcular información adicional
                     if processor.NumberOfCores and processor.NumberOfLogicalProcessors:
                         cpu_info["cores_per_socket"] = processor.NumberOfCores
                         cpu_info["logical_processors"] = processor.NumberOfLogicalProcessors
                         cpu_info["hyperthreading_enabled"] = processor.NumberOfLogicalProcessors > processor.NumberOfCores
                     
-                    break  # Tomar solo el primer procesador
+                    break
                     
         except Exception as e:
             self.logger.error(f"Error escaneando CPU: {e}")
         
-        # Agregar información de temperatura si está disponible
         try:
             if self.wmi_connection:
                 for temp_sensor in self.wmi_connection.Win32_TemperatureProbe():
@@ -196,7 +182,6 @@ class SystemScanner:
         return cpu_info
     
     def scan_operating_system(self) -> Dict[str, Any]:
-        """Escanea información del sistema operativo"""
         os_info = {
             "system": platform.system(),
             "release": platform.release(),
@@ -218,7 +203,6 @@ class SystemScanner:
                         "total_virtual_memory_gb": round(int(os_data.TotalVirtualMemorySize) / (1024*1024), 2) if os_data.TotalVirtualMemorySize else None
                     })
                     
-                # Obtener información del sistema
                 for system_info in self.wmi_connection.Win32_ComputerSystem():
                     os_info.update({
                         "manufacturer": system_info.Manufacturer,
@@ -226,13 +210,11 @@ class SystemScanner:
                         "total_physical_memory_gb": round(int(system_info.TotalPhysicalMemory) / (1024**3), 2) if system_info.TotalPhysicalMemory else None
                     })
                     
-                # Obtener product ID y clave de producto
                 if self.include_sensitive:
                     try:
                         for os_product in self.wmi_connection.Win32_OperatingSystem():
                             os_info["serial_number"] = os_product.SerialNumber
                             
-                        # Intentar obtener la clave de producto
                         result = subprocess.run([
                             "powershell", "-Command", 
                             "(Get-WmiObject -query 'select * from SoftwareLicensingService').OA3xOriginalProductKey"
@@ -266,7 +248,6 @@ class SystemScanner:
         }
         
         try:
-            # Verificar si hay reinicio pendiente
             result = subprocess.run([
                 "powershell", "-Command", 
                 "Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired' -ErrorAction SilentlyContinue"
@@ -274,7 +255,6 @@ class SystemScanner:
             
             updates_info["reboot_required"] = result.returncode == 0 and result.stdout.strip()
             
-            # Verificar configuración de actualizaciones automáticas
             result = subprocess.run([
                 "powershell", "-Command", 
                 "(New-Object -ComObject Microsoft.Update.AutoUpdate).Settings.NotificationLevel"
@@ -284,7 +264,6 @@ class SystemScanner:
                 level = result.stdout.strip()
                 updates_info["automatic_updates_enabled"] = level not in ["1", "Disabled"]
             
-            # Intentar obtener actualizaciones pendientes usando Windows Update API
             powershell_script = '''
             $Session = New-Object -ComObject Microsoft.Update.Session
             $Searcher = $Session.CreateUpdateSearcher()
@@ -330,7 +309,6 @@ class SystemScanner:
         return updates_info
     
     def scan_driver_updates(self) -> Dict[str, Any]:
-        """Escanea drivers que necesitan actualización"""
         driver_info = {
             "outdated_drivers": [],
             "total_drivers": 0,
@@ -338,7 +316,6 @@ class SystemScanner:
         }
         
         try:
-            # Obtener información de drivers usando WMI
             if self.wmi_connection:
                 for driver in self.wmi_connection.Win32_PnPSignedDriver():
                     if driver.DeviceName and driver.DriverVersion:
@@ -351,7 +328,6 @@ class SystemScanner:
                             "hardware_id": driver.HardwareID
                         }
                         
-                        # Considerar driver obsoleto si es muy antiguo (más de 2 años)
                         try:
                             if driver.DriverDate:
                                 driver_year = int(driver.DriverDate[:4])
@@ -366,7 +342,6 @@ class SystemScanner:
                         
             driver_info["drivers_needing_update"] = len(driver_info["outdated_drivers"])
             
-            # Limitar a los 20 más relevantes para no sobrecargar
             driver_info["outdated_drivers"] = driver_info["outdated_drivers"][:20]
             
         except Exception as e:
@@ -386,7 +361,7 @@ class SystemScanner:
                     "disks": self.scan_disks(),
                     "gpu": self.scan_gpu(),
                     "memory": self.scan_memory(),
-                    "cpu": self.scan_cpu()  # Ahora incluye núcleos, hilos, hyperthreading, etc.
+                    "cpu": self.scan_cpu()
                 },
                 "operating_system": self.scan_operating_system(),
                 "updates": {
@@ -396,7 +371,7 @@ class SystemScanner:
             },
             "scan_settings": {
                 "include_sensitive": self.include_sensitive,
-                "scanner_version": "1.1.0"  # Incrementada por las nuevas funciones
+                "scanner_version": "1.1.0"
             }
         }
         

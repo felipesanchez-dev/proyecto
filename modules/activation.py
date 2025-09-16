@@ -1,7 +1,3 @@
-"""
-Módulo de activación de Windows y Office
-Implementa comandos PowerShell con confirmaciones de seguridad
-"""
 import subprocess
 import platform
 import logging
@@ -14,46 +10,36 @@ from modules.logging_setup import SecurityLogger
 from config.settings import ACTIVATION_COMMANDS
 
 class ActivationModule:
-    """Módulo para activación de Windows y Office"""
     
     def __init__(self, console: Console = None):
         self.console = console or Console()
         self.logger = logging.getLogger('sistema_scanner.activation')
         self.security_logger = SecurityLogger()
         
-        # Detectar versión de Windows
         self.windows_version = self.detect_windows_version()
         
     def detect_windows_version(self) -> str:
-        """
-        Detecta la versión de Windows para seleccionar el comando apropiado
-        Returns:
-            Versión de Windows detectada
-        """
+       
         try:
             version = platform.version()
             release = platform.release()
             
-            # Windows 7 y anteriores
             if "6.1" in version or release == "7":
                 return "windows_7_legacy"
             
-            # Windows 8, 10, 11
             elif any(x in release for x in ["8", "10", "11"]) or "10.0" in version:
                 return "windows_8_10_11"
             
             else:
-                # Por defecto usar el comando moderno
                 return "windows_8_10_11"
                 
         except Exception as e:
             self.logger.warning(f"Error detectando versión de Windows: {e}")
-            return "windows_8_10_11"  # Fallback
+            return "windows_8_10_11"
     
     def show_activation_menu(self):
         """Muestra el menú de activación con advertencias"""
         
-        # Banner de advertencia principal
         warning_text = Text()
         warning_text.append("⚠️  ADVERTENCIA CRÍTICA  ⚠️\n\n", style="bold red")
         warning_text.append("Esta función ejecutará comandos de activación de terceros.\n", style="yellow")
@@ -68,7 +54,6 @@ class ActivationModule:
             border_style="red"
         ))
         
-        # Información del sistema
         system_info = Panel.fit(
             f"[bold white]Sistema Detectado:[/bold white]\n"
             f"• Windows: {platform.release()} ({platform.version()})\n"
@@ -80,7 +65,6 @@ class ActivationModule:
         
         self.console.print(system_info)
         
-        # Menú de opciones
         menu_text = Text()
         menu_text.append("OPCIONES DISPONIBLES:\n\n", style="bold white")
         menu_text.append("1. ", style="bright_green")
@@ -123,7 +107,6 @@ class ActivationModule:
     def perform_automatic_activation(self):
         """Ejecuta la activación automática con confirmaciones múltiples"""
         
-        # Primera confirmación - Comprensión del riesgo
         self.console.print(Panel.fit(
             "[bold red]CONFIRMACIÓN DE RIESGO[/bold red]\n\n"
             "Está a punto de ejecutar un script de activación que:\n"
@@ -145,7 +128,6 @@ class ActivationModule:
             self.security_logger.log_activation_attempt("Windows", False)
             return
         
-        # Segunda confirmación - Comando específico
         command = ACTIVATION_COMMANDS[self.windows_version]
         
         command_panel = Panel.fit(
@@ -168,7 +150,6 @@ class ActivationModule:
             self.security_logger.log_activation_attempt("Windows", False)
             return
         
-        # Tercera confirmación - Última oportunidad
         final_confirm = Confirm.ask(
             "[bold red]ÚLTIMA CONFIRMACIÓN: ¿Ejecutar script de activación AHORA?[/bold red]",
             default=False
@@ -179,14 +160,12 @@ class ActivationModule:
             self.security_logger.log_activation_attempt("Windows", False)
             return
         
-        # Ejecutar comando
         self.security_logger.log_activation_attempt("Windows", True)
         self.security_logger.log_external_command(command, True)
         
         try:
             self.console.print("[bold yellow]🔄 Ejecutando comando de activación...[/bold yellow]")
             
-            # Ejecutar PowerShell como administrador
             powershell_cmd = [
                 "powershell", 
                 "-ExecutionPolicy", "Bypass",
@@ -196,7 +175,6 @@ class ActivationModule:
             
             self.logger.info(f"Ejecutando comando de activación: {self.windows_version}")
             
-            # Ejecutar el comando y mostrar progreso
             process = subprocess.Popen(
                 powershell_cmd,
                 stdout=subprocess.PIPE,
@@ -207,8 +185,7 @@ class ActivationModule:
             
             self.console.print("[cyan]📝 Comando enviado a PowerShell. Verifique la ventana de PowerShell...[/cyan]")
             
-            # Esperar a que termine el proceso
-            stdout, stderr = process.communicate(timeout=300)  # 5 minutos timeout
+            stdout, stderr = process.communicate(timeout=300)
             
             if process.returncode == 0:
                 self.console.print("[bold green]✅ Comando ejecutado exitosamente[/bold green]")
@@ -276,13 +253,10 @@ class ActivationModule:
         self.console.print("[cyan]🔍 Obteniendo información de licencias...[/cyan]")
         
         try:
-            # Información de activación de Windows
             windows_info = self.get_windows_activation_info()
             
-            # Información de Office (si está instalado)
             office_info = self.get_office_activation_info()
             
-            # Mostrar información de Windows
             if windows_info:
                 self.console.print(Panel.fit(
                     windows_info,
@@ -290,7 +264,6 @@ class ActivationModule:
                     border_style="blue"
                 ))
             
-            # Mostrar información de Office
             if office_info:
                 self.console.print(Panel.fit(
                     office_info,
@@ -323,7 +296,6 @@ class ActivationModule:
     def get_office_activation_info(self) -> Optional[str]:
         """Obtiene información de activación de Office"""
         try:
-            # Intentar encontrar Office
             office_paths = [
                 "C:\\\\Program Files\\\\Microsoft Office\\\\Office16\\\\ospp.vbs",
                 "C:\\\\Program Files (x86)\\\\Microsoft Office\\\\Office16\\\\ospp.vbs",
