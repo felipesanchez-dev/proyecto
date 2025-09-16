@@ -1,0 +1,4 @@
+psutil==5.9.6
+pymongo==4.6.0
+rich==13.7.0
+wmi==1.5.1

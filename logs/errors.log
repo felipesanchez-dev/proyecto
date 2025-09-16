@@ -1,0 +1,7 @@
+2025-09-16 17:54:59,870 - modules.scanner - ERROR - Error escaneando CPU: <unknown>.Model
+2025-09-16 17:55:02,037 - modules.security_scanner - ERROR - Error escaneando hotfixes: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 17:55:02,042 - modules.security_scanner - ERROR - Error escaneando software: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:00:02,609 - sistema_scanner.interface - ERROR - Error en interfaz principal: EOF when reading a line
+2025-09-16 18:00:41,727 - modules.scanner - ERROR - Error escaneando CPU: <unknown>.Model
+2025-09-16 18:00:44,299 - modules.security_scanner - ERROR - Error escaneando hotfixes: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:00:44,303 - modules.security_scanner - ERROR - Error escaneando software: [WinError 2] El sistema no puede encontrar el archivo especificado
