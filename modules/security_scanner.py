@@ -74,9 +74,16 @@ class SecurityScanner:
             
         return firewall_info
     
-    def scan_open_ports(self) -> List[Dict[str, Any]]:
-        """Escanea puertos abiertos y conexiones de escucha"""
-        connections = []
+    def scan_open_ports(self) -> Dict[str, Any]:
+        """Escanea puertos abiertos y conexiones de escucha (solo críticos para MongoDB)"""
+        # Puertos críticos que sí queremos guardar en la base de datos
+        critical_ports = {
+            21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995,
+            1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443, 27017
+        }
+        
+        all_connections = []
+        critical_connections = []
         
         try:
             # Usar psutil para obtener conexiones
@@ -101,7 +108,11 @@ class SecurityScanner:
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             connection_info["process_name"] = "unknown"
                     
-                    connections.append(connection_info)
+                    all_connections.append(connection_info)
+                    
+                    # Solo agregar a críticos si el puerto está en nuestra lista
+                    if conn.laddr and conn.laddr.port in critical_ports:
+                        critical_connections.append(connection_info)
                     
         except Exception as e:
             self.logger.error(f"Error escaneando puertos: {e}")
@@ -122,19 +133,33 @@ class SecurityScanner:
                                 local_addr = parts[1]
                                 
                                 if ':' in local_addr:
-                                    ip, port = local_addr.rsplit(':', 1)
-                                    connections.append({
-                                        "protocol": protocol,
-                                        "local_address": ip,
-                                        "local_port": port,
-                                        "status": "LISTENING",
-                                        "source": "netstat"
-                                    })
+                                    ip, port_str = local_addr.rsplit(':', 1)
+                                    try:
+                                        port_num = int(port_str)
+                                        conn_info = {
+                                            "protocol": protocol,
+                                            "local_address": ip,
+                                            "local_port": port_str,
+                                            "status": "LISTENING",
+                                            "source": "netstat"
+                                        }
+                                        all_connections.append(conn_info)
+                                        
+                                        # Solo agregar a críticos si es puerto crítico
+                                        if port_num in critical_ports:
+                                            critical_connections.append(conn_info)
+                                    except ValueError:
+                                        continue
                                     
             except Exception as e2:
                 self.logger.error(f"Error con netstat fallback: {e2}")
-                
-        return connections
+        
+        return {
+            "total_ports": len(all_connections),
+            "critical_ports": critical_connections,
+            "critical_count": len(critical_connections),
+            "summary": f"Se encontraron {len(all_connections)} puertos abiertos, {len(critical_connections)} son críticos"
+        }
     
     def scan_hotfixes(self) -> List[Dict[str, Any]]:
         """Escanea actualizaciones y hotfixes instalados"""
@@ -263,7 +288,7 @@ class SecurityScanner:
         
         security_data = {
             "firewall": self.scan_firewall_status(),
-            "open_ports": self.scan_open_ports(),
+            "ports_summary": self.scan_open_ports(),  # Ahora incluye solo resumen y puertos críticos
             "hotfixes": self.scan_hotfixes(),
             "installed_software_summary": {
                 "total_count": 0,

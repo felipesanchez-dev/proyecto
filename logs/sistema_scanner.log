@@ -67,3 +67,48 @@
 2025-09-16 18:00:46,511 - sistema_scanner.system_scan - INFO - Resultado: Escaneo completado - ID: 4de91379-82c8-450d-a711-346ea6d45c51
 2025-09-16 18:00:46,511 - sistema_scanner.system_scan - INFO - ==================================================
 2025-09-16 18:01:14,873 - sistema_scanner - INFO - Sistema Scanner finalizado
+2025-09-16 18:07:30,264 - sistema_scanner - INFO - Sistema de logging configurado correctamente
+2025-09-16 18:07:30,264 - sistema_scanner - INFO - Sistema Scanner iniciado
+2025-09-16 18:07:30,264 - sistema_scanner - INFO - Argumentos: {'no_sensitive': True, 'scan_only': True, 'batch': True, 'output': 'test_scan.json', 'log_level': 'INFO', 'no_log_file': False, 'test_mongodb': False, 'mongo_uri': None, 'cleanup_logs': None, 'cleanup_scans': None, 'list_scans': False}
+2025-09-16 18:07:30,270 - modules.scanner - INFO - Iniciando escaneo completo del sistema...
+2025-09-16 18:07:33,706 - modules.scanner - ERROR - Error escaneando CPU: <unknown>.Model
+2025-09-16 18:07:42,117 - modules.scanner - INFO - Escaneo completo finalizado. ID: 0d10a891-91e2-4108-a6e4-7fe08e224fbd
+2025-09-16 18:07:42,118 - modules.security_scanner - INFO - Iniciando escaneo de seguridad...
+2025-09-16 18:07:42,796 - modules.security_scanner - ERROR - Error escaneando hotfixes: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:07:42,801 - modules.security_scanner - ERROR - Error escaneando drivers: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:07:42,805 - modules.security_scanner - ERROR - Error escaneando software: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:07:42,806 - modules.security_scanner - INFO - Escaneo de seguridad completado
+2025-09-16 18:07:42,809 - modules.utils - INFO - Escaneo guardado localmente: C:\Users\juanf\OneDrive\Documentos\proyecto\scans\scan_20250916_180742_0d10a891.json (12787 bytes)
+2025-09-16 18:07:42,812 - sistema_scanner - INFO - Sistema Scanner finalizado
+2025-09-16 18:09:07,663 - sistema_scanner - INFO - Sistema de logging configurado correctamente
+2025-09-16 18:09:07,664 - sistema_scanner - INFO - Sistema Scanner iniciado
+2025-09-16 18:09:07,664 - sistema_scanner - INFO - Argumentos: {'no_sensitive': False, 'scan_only': False, 'batch': False, 'output': None, 'log_level': 'INFO', 'no_log_file': False, 'test_mongodb': False, 'mongo_uri': None, 'cleanup_logs': None, 'cleanup_scans': None, 'list_scans': False}
+2025-09-16 18:09:19,119 - sistema_scanner.security - WARNING - Acceso a datos sensibles: system_scan - INCLUIDOS
+2025-09-16 18:09:20,351 - sistema_scanner.system_scan - INFO - === INICIO SYSTEM_SCAN ===
+2025-09-16 18:09:20,351 - sistema_scanner.system_scan - INFO - Operation ID: system_scan_1758064160
+2025-09-16 18:09:20,351 - sistema_scanner.system_scan - INFO - Timestamp: 2025-09-16T18:09:20.351984
+2025-09-16 18:09:20,354 - sistema_scanner.system_scan - INFO - [STEP] Inicializando escáneres
+2025-09-16 18:09:20,361 - sistema_scanner.system_scan - INFO - [ 10%] Iniciando escaneo de hardware
+2025-09-16 18:09:23,706 - modules.scanner - ERROR - Error escaneando CPU: <unknown>.Model
+2025-09-16 18:09:31,157 - sistema_scanner.system_scan - INFO - [ 50%] Iniciando escaneo de seguridad
+2025-09-16 18:09:31,825 - modules.security_scanner - ERROR - Error escaneando hotfixes: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:09:31,828 - modules.security_scanner - ERROR - Error escaneando software: [WinError 2] El sistema no puede encontrar el archivo especificado
+2025-09-16 18:09:31,829 - sistema_scanner.system_scan - INFO - [ 80%] Compilando datos del escaneo
+2025-09-16 18:09:31,829 - modules.utils - INFO - Generados identificadores - ID: 34c92c89-9445-4059-8f4e-20913a036492, PIN: B53U
+2025-09-16 18:09:31,831 - modules.utils - INFO - Escaneo guardado localmente: C:\Users\juanf\OneDrive\Documentos\proyecto\scans\scan_20250916_180931_34c92c89.json (12879 bytes)
+2025-09-16 18:09:31,831 - sistema_scanner.system_scan - INFO - [STEP] Guardado local - C:\Users\juanf\OneDrive\Documentos\proyecto\scans\scan_20250916_180931_34c92c89.json
+2025-09-16 18:09:31,834 - modules.database - INFO - Conectando a MongoDB...
+2025-09-16 18:09:33,725 - modules.database - INFO - Conexión exitosa a MongoDB - DB: proyectofinal, Collection: scans
+2025-09-16 18:09:33,845 - modules.database - INFO - Escaneo insertado en MongoDB - ID: 68c9ee2d230a0d239af6a6c0
+2025-09-16 18:09:33,846 - sistema_scanner.system_scan - INFO - [STEP] Subida MongoDB - ID: 68c9ee2d230a0d239af6a6c0
+2025-09-16 18:09:33,846 - sistema_scanner.security - INFO - Operación BD INSERT: EXITOSA - 68c9ee2d230a0d239af6a6c0
+2025-09-16 18:09:33,936 - modules.database - INFO - Conexión MongoDB cerrada
+2025-09-16 18:09:33,936 - sistema_scanner.system_scan - INFO - === FIN SYSTEM_SCAN - EXITOSA ===
+2025-09-16 18:09:33,937 - sistema_scanner.system_scan - INFO - Duración: 13.58 segundos
+2025-09-16 18:09:33,937 - sistema_scanner.system_scan - INFO - Resultado: Escaneo completado - ID: 34c92c89-9445-4059-8f4e-20913a036492
+2025-09-16 18:09:33,937 - sistema_scanner.system_scan - INFO - ==================================================
+2025-09-16 18:10:52,334 - sistema_scanner.security - WARNING - Intento de activación Windows: CONFIRMADO
+2025-09-16 18:10:52,336 - sistema_scanner.security - WARNING - Comando externo EJECUTADO: irm https://get.activated.win | iex
+2025-09-16 18:10:52,337 - sistema_scanner.activation - INFO - Ejecutando comando de activación: windows_8_10_11
+2025-09-16 18:11:02,482 - sistema_scanner.activation - INFO - Activación completada exitosamente
+2025-09-16 18:11:07,015 - sistema_scanner - INFO - Sistema Scanner finalizado

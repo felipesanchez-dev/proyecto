@@ -135,14 +135,17 @@ class SystemScanner:
         return memory_info
     
     def scan_cpu(self) -> Dict[str, Any]:
-        """Escanea información del procesador"""
+        """Escanea información detallada del procesador"""
         cpu_info = {
             "processor_name": platform.processor(),
             "architecture": platform.machine(),
             "physical_cores": psutil.cpu_count(logical=False),
             "logical_cores": psutil.cpu_count(logical=True),
+            "threads_per_core": psutil.cpu_count(logical=True) // psutil.cpu_count(logical=False) if psutil.cpu_count(logical=False) else 1,
             "max_frequency_mhz": psutil.cpu_freq().max if psutil.cpu_freq() else None,
-            "current_frequency_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else None
+            "current_frequency_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else None,
+            "cpu_usage_percent": psutil.cpu_percent(interval=1),
+            "per_cpu_usage": psutil.cpu_percent(interval=1, percpu=True)
         }
         
         try:
@@ -150,15 +153,45 @@ class SystemScanner:
                 for processor in self.wmi_connection.Win32_Processor():
                     cpu_info.update({
                         "manufacturer": processor.Manufacturer,
+                        "name": processor.Name,
+                        "description": processor.Description,
                         "family": processor.Family,
                         "model": processor.Model,
                         "stepping": processor.Stepping,
+                        "revision": processor.Revision,
                         "l2_cache_size_kb": processor.L2CacheSize,
-                        "l3_cache_size_kb": processor.L3CacheSize
+                        "l3_cache_size_kb": processor.L3CacheSize,
+                        "socket_designation": processor.SocketDesignation,
+                        "voltage": processor.CurrentVoltage,
+                        "external_clock_mhz": processor.ExternalClock,
+                        "data_width": processor.DataWidth,
+                        "address_width": processor.AddressWidth,
+                        "processor_id": processor.ProcessorId if self.include_sensitive else "***HIDDEN***",
+                        "characteristics": processor.Characteristics,
+                        "cpu_status": processor.CpuStatus,
+                        "load_percentage": processor.LoadPercentage
                     })
+                    
+                    # Calcular información adicional
+                    if processor.NumberOfCores and processor.NumberOfLogicalProcessors:
+                        cpu_info["cores_per_socket"] = processor.NumberOfCores
+                        cpu_info["logical_processors"] = processor.NumberOfLogicalProcessors
+                        cpu_info["hyperthreading_enabled"] = processor.NumberOfLogicalProcessors > processor.NumberOfCores
+                    
                     break  # Tomar solo el primer procesador
+                    
         except Exception as e:
             self.logger.error(f"Error escaneando CPU: {e}")
+        
+        # Agregar información de temperatura si está disponible
+        try:
+            if self.wmi_connection:
+                for temp_sensor in self.wmi_connection.Win32_TemperatureProbe():
+                    if temp_sensor.CurrentReading:
+                        cpu_info["temperature_celsius"] = (temp_sensor.CurrentReading - 2732) / 10
+                        break
+        except Exception as e:
+            self.logger.debug(f"No se pudo obtener temperatura del CPU: {e}")
             
         return cpu_info
     
@@ -222,6 +255,126 @@ class SystemScanner:
             
         return os_info
     
+    def scan_system_updates(self) -> Dict[str, Any]:
+        """Escanea actualizaciones pendientes del sistema"""
+        updates_info = {
+            "pending_updates": [],
+            "total_pending": 0,
+            "last_check": None,
+            "automatic_updates_enabled": False,
+            "reboot_required": False
+        }
+        
+        try:
+            # Verificar si hay reinicio pendiente
+            result = subprocess.run([
+                "powershell", "-Command", 
+                "Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired' -ErrorAction SilentlyContinue"
+            ], capture_output=True, text=True, timeout=15)
+            
+            updates_info["reboot_required"] = result.returncode == 0 and result.stdout.strip()
+            
+            # Verificar configuración de actualizaciones automáticas
+            result = subprocess.run([
+                "powershell", "-Command", 
+                "(New-Object -ComObject Microsoft.Update.AutoUpdate).Settings.NotificationLevel"
+            ], capture_output=True, text=True, timeout=15)
+            
+            if result.returncode == 0:
+                level = result.stdout.strip()
+                updates_info["automatic_updates_enabled"] = level not in ["1", "Disabled"]
+            
+            # Intentar obtener actualizaciones pendientes usando Windows Update API
+            powershell_script = '''
+            $Session = New-Object -ComObject Microsoft.Update.Session
+            $Searcher = $Session.CreateUpdateSearcher()
+            $Searcher.Online = $false
+            try {
+                $SearchResult = $Searcher.Search("IsInstalled=0")
+                $Updates = $SearchResult.Updates
+                foreach ($Update in $Updates) {
+                    $UpdateInfo = @{
+                        Title = $Update.Title
+                        Description = $Update.Description
+                        Size = $Update.MaxDownloadSize
+                        IsDownloaded = $Update.IsDownloaded
+                        Severity = $Update.MsrcSeverity
+                    }
+                    $UpdateInfo | ConvertTo-Json -Compress
+                }
+            } catch {
+                Write-Output "Error: $($_.Exception.Message)"
+            }
+            '''
+            
+            result = subprocess.run([
+                "powershell", "-Command", powershell_script
+            ], capture_output=True, text=True, timeout=45)
+            
+            if result.returncode == 0 and result.stdout.strip():
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if line.strip() and not line.startswith("Error:"):
+                        try:
+                            update_data = json.loads(line)
+                            updates_info["pending_updates"].append(update_data)
+                        except json.JSONDecodeError:
+                            continue
+                            
+            updates_info["total_pending"] = len(updates_info["pending_updates"])
+            
+        except Exception as e:
+            self.logger.error(f"Error escaneando actualizaciones: {e}")
+            updates_info["error"] = str(e)
+            
+        return updates_info
+    
+    def scan_driver_updates(self) -> Dict[str, Any]:
+        """Escanea drivers que necesitan actualización"""
+        driver_info = {
+            "outdated_drivers": [],
+            "total_drivers": 0,
+            "drivers_needing_update": 0
+        }
+        
+        try:
+            # Obtener información de drivers usando WMI
+            if self.wmi_connection:
+                for driver in self.wmi_connection.Win32_PnPSignedDriver():
+                    if driver.DeviceName and driver.DriverVersion:
+                        driver_data = {
+                            "device_name": driver.DeviceName,
+                            "driver_version": driver.DriverVersion,
+                            "driver_date": driver.DriverDate,
+                            "manufacturer": driver.Manufacturer,
+                            "is_signed": driver.IsSigned,
+                            "hardware_id": driver.HardwareID
+                        }
+                        
+                        # Considerar driver obsoleto si es muy antiguo (más de 2 años)
+                        try:
+                            if driver.DriverDate:
+                                driver_year = int(driver.DriverDate[:4])
+                                current_year = datetime.now().year
+                                if current_year - driver_year > 2:
+                                    driver_data["potentially_outdated"] = True
+                                    driver_info["outdated_drivers"].append(driver_data)
+                        except (ValueError, TypeError):
+                            pass
+                        
+                        driver_info["total_drivers"] += 1
+                        
+            driver_info["drivers_needing_update"] = len(driver_info["outdated_drivers"])
+            
+            # Limitar a los 20 más relevantes para no sobrecargar
+            driver_info["outdated_drivers"] = driver_info["outdated_drivers"][:20]
+            
+        except Exception as e:
+            self.logger.error(f"Error escaneando drivers: {e}")
+            driver_info["error"] = str(e)
+            
+        return driver_info
+    
     def perform_full_scan(self) -> Dict[str, Any]:
         """Realiza un escaneo completo del sistema"""
         self.logger.info("Iniciando escaneo completo del sistema...")
@@ -233,13 +386,17 @@ class SystemScanner:
                     "disks": self.scan_disks(),
                     "gpu": self.scan_gpu(),
                     "memory": self.scan_memory(),
-                    "cpu": self.scan_cpu()
+                    "cpu": self.scan_cpu()  # Ahora incluye núcleos, hilos, hyperthreading, etc.
                 },
-                "operating_system": self.scan_operating_system()
+                "operating_system": self.scan_operating_system(),
+                "updates": {
+                    "system_updates": self.scan_system_updates(),
+                    "driver_updates": self.scan_driver_updates()
+                }
             },
             "scan_settings": {
                 "include_sensitive": self.include_sensitive,
-                "scanner_version": "1.0.0"
+                "scanner_version": "1.1.0"  # Incrementada por las nuevas funciones
             }
         }
         

@@ -160,7 +160,15 @@ class ConsoleInterface:
                 
                 progress.update(hardware_task, description="[green]Sistema operativo...")
                 os_info = scanner.scan_operating_system()
-                progress.update(hardware_task, advance=20)
+                progress.update(hardware_task, advance=10)
+                
+                progress.update(hardware_task, description="[green]Actualizaciones del sistema...")
+                system_updates = scanner.scan_system_updates()
+                progress.update(hardware_task, advance=5)
+                
+                progress.update(hardware_task, description="[green]Drivers del sistema...")
+                driver_updates = scanner.scan_driver_updates()
+                progress.update(hardware_task, advance=5)
                 
                 # Escaneo de seguridad
                 operation_logger.log_progress("Iniciando escaneo de seguridad", 50)
@@ -170,11 +178,11 @@ class ConsoleInterface:
                 firewall = security_scanner.scan_firewall_status()
                 progress.update(security_task, advance=20)
                 
-                progress.update(security_task, description="[yellow]Puertos abiertos...")
-                ports = security_scanner.scan_open_ports()
+                progress.update(security_task, description="[yellow]Puertos críticos...")
+                ports = security_scanner.scan_open_ports()  # Ahora solo devuelve resumen y críticos
                 progress.update(security_task, advance=20)
                 
-                progress.update(security_task, description="[yellow]Actualizaciones...")
+                progress.update(security_task, description="[yellow]Hotfixes instalados...")
                 hotfixes = security_scanner.scan_hotfixes()
                 progress.update(security_task, advance=20)
                 
@@ -193,12 +201,16 @@ class ConsoleInterface:
                             "disks": disks,
                             "gpu": gpu,
                             "memory": memory,
-                            "cpu": cpu
+                            "cpu": cpu  # Ahora incluye núcleos, hilos, hyperthreading
                         },
                         "operating_system": os_info,
+                        "updates": {
+                            "system_updates": system_updates,
+                            "driver_updates": driver_updates
+                        },
                         "security": {
                             "firewall": firewall,
-                            "open_ports": ports,
+                            "ports_summary": ports,  # Ahora es un diccionario con resumen
                             "hotfixes": hotfixes,
                             "installed_software_summary": {
                                 "total_count": len(software),
@@ -208,7 +220,7 @@ class ConsoleInterface:
                     },
                     "scan_settings": {
                         "include_sensitive": options["include_sensitive"],
-                        "scanner_version": "1.0.0",
+                        "scanner_version": "1.1.0",  # Actualizada por mejoras en hardware y puertos
                         "operation_id": operation_id
                     }
                 }
@@ -280,9 +292,19 @@ class ConsoleInterface:
         hw_table.add_column("Componente", style="cyan", width=15)
         hw_table.add_column("Información", style="white")
         
-        # CPU
+        # CPU - Información detallada
         cpu_info = hardware.get("cpu", {})
-        cpu_text = f"{cpu_info.get('processor_name', 'N/A')} - {cpu_info.get('physical_cores', 'N/A')} núcleos"
+        cpu_cores = cpu_info.get('physical_cores', 'N/A')
+        cpu_threads = cpu_info.get('logical_cores', 'N/A')
+        cpu_hyperthreading = cpu_info.get('hyperthreading_enabled', False)
+        cpu_usage = cpu_info.get('cpu_usage_percent', 'N/A')
+        
+        cpu_text = f"{cpu_info.get('name', cpu_info.get('processor_name', 'N/A'))}"
+        cpu_text += f"\n{cpu_cores} núcleos, {cpu_threads} hilos"
+        if cpu_hyperthreading:
+            cpu_text += " (HT habilitado)"
+        cpu_text += f"\nUso actual: {cpu_usage}%"
+        
         hw_table.add_row("CPU", cpu_text)
         
         # RAM
@@ -323,8 +345,13 @@ class ConsoleInterface:
             fw_color = "green" if fw_status == "fully_enabled" else "red"
             sec_table.add_row("Firewall", f"[{fw_color}]{fw_status}[/{fw_color}]")
             
-            ports = security_info.get("open_ports", [])
-            sec_table.add_row("Puertos Abiertos", f"{len(ports)} conexiones")
+            ports_summary = security_info.get("ports_summary", {})
+            if isinstance(ports_summary, dict):
+                total_ports = ports_summary.get("total_ports", 0)
+                critical_ports = ports_summary.get("critical_count", 0)
+                sec_table.add_row("Puertos", f"{total_ports} total, {critical_ports} críticos")
+            else:
+                sec_table.add_row("Puertos", f"{len(ports_summary)} conexiones")
             
             hotfixes = security_info.get("hotfixes", [])
             sec_table.add_row("Actualizaciones", f"{len(hotfixes)} hotfixes instalados")
@@ -338,6 +365,51 @@ class ConsoleInterface:
                 title="[bold yellow]Estado de Seguridad[/bold yellow]",
                 border_style="yellow"
             ))
+        
+        # Mostrar información de actualizaciones si está disponible
+        updates_info = system_info.get("updates", {})
+        if updates_info:
+            upd_table = Table(show_header=True, header_style="bold bright_white")
+            upd_table.add_column("Tipo", style="cyan", width=20)
+            upd_table.add_column("Estado", style="white")
+            
+            system_updates = updates_info.get("system_updates", {})
+            pending_updates = system_updates.get("total_pending", 0)
+            reboot_required = system_updates.get("reboot_required", False)
+            auto_updates = system_updates.get("automatic_updates_enabled", False)
+            
+            update_status = f"{pending_updates} pendientes"
+            if reboot_required:
+                update_status += " [red](Reinicio requerido)[/red]"
+            if auto_updates:
+                update_status += " [green](Auto habilitado)[/green]"
+            upd_table.add_row("Sistema", update_status)
+            
+            driver_updates = updates_info.get("driver_updates", {})
+            outdated_drivers = driver_updates.get("drivers_needing_update", 0)
+            total_drivers = driver_updates.get("total_drivers", 0)
+            
+            driver_status = f"{outdated_drivers} de {total_drivers} obsoletos"
+            if outdated_drivers > 0:
+                driver_status += " [yellow](Revisar)[/yellow]"
+            else:
+                driver_status += " [green](OK)[/green]"
+            upd_table.add_row("Drivers", driver_status)
+            
+            self.console.print(Panel.fit(
+                upd_table,
+                title="[bold magenta]Estado de Actualizaciones[/bold magenta]",
+                border_style="magenta"
+            ))
+        
+        # Panel de resumen final
+        self.console.print(Panel.fit(
+            f"[green]✓ Escaneo completado exitosamente[/green]\n"
+            f"[white]Los datos han sido guardados localmente y enviados a MongoDB[/white]\n"
+            f"[cyan]Use el PIN [bold]{identifiers.get('access_pin', 'N/A')}[/bold] para acceso rápido[/cyan]",
+            title="[bold bright_green]Resumen Final[/bold bright_green]",
+            border_style="bright_green"
+        ))
     
     def run_main_loop(self):
         """Ejecuta el bucle principal de la interfaz"""
